@@ -1,0 +1,971 @@
+<html>
+
+<head>
+<style type="text/css">
+.inline {
+  background-color: #f7f7f7;
+  border:solid 1px #B0B0B0;
+}
+.error {
+	font-weight: bold;
+	color: #FF0000;
+}
+.warning {
+	font-weight: bold;
+}
+.message {
+	font-style: italic;
+}
+.source, .output, .warning, .error, .message {
+	padding: 0 1em;
+  border:solid 1px #F7F7F7;
+}
+.source {
+  background-color: #f5f5f5;
+}
+.left {
+  text-align: left;
+}
+.right {
+  text-align: right;
+}
+.center {
+  text-align: center;
+}
+.hl.num {
+  color: #AF0F91;
+}
+.hl.str {
+  color: #317ECC;
+}
+.hl.com {
+  color: #AD95AF;
+  font-style: italic;
+}
+.hl.opt {
+  color: #000000;
+}
+.hl.std {
+  color: #585858;
+}
+.hl.kwa {
+  color: #295F94;
+  font-weight: bold;
+}
+.hl.kwb {
+  color: #B05A65;
+}
+.hl.kwc {
+  color: #55aa55;
+}
+.hl.kwd {
+  color: #BC5A65;
+  font-weight: bold;
+}
+</style>
+<title>LDA for speaking rate variation on Arabic data</title>
+</head>
+
+<body>
+
+<p>Linear discriminant analyses  : Discriminant analysis is a classification method. 
+It assumes that different classes generate data based on different Gaussian distributions.
+To perform Linear Discriminant Analysis in R we will make use of the lda function in MASS package.   
+
+
+#######################
+</p>
+
+<div class="chunk" id="unnamed-chunk-1"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">library</span><span class="hl std">(MASS)</span>
+<span class="hl kwd">library</span><span class="hl std">(caret)</span>
+</pre></div>
+<div class="warning"><pre class="knitr r">## Warning: le package 'caret' a été compilé avec la version R 4.4.1
+</pre></div>
+<div class="message"><pre class="knitr r">## Le chargement a nécessité le package : ggplot2
+</pre></div>
+<div class="message"><pre class="knitr r">## Le chargement a nécessité le package : lattice
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">library</span><span class="hl std">(phonR)</span>
+
+<span class="hl com">#loading the data:</span>
+<span class="hl std">Arabic</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">read.csv</span><span class="hl std">(</span><span class="hl str">&quot;~/Github/Speaking_rate_2021/2024_EFE_Journal/SpeakingRate24.csv&quot;</span><span class="hl std">)</span>
+
+<span class="hl std">Arabic</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">subset</span><span class="hl std">(Arabic,</span> <span class="hl kwc">select</span> <span class="hl std">=</span> <span class="hl opt">-</span><span class="hl std">Arabic_phrase)</span> <span class="hl com">### delete a colomn containing Arabic laphabet to avoid bugs. </span>
+<span class="hl std">Arabic</span><span class="hl opt">$</span><span class="hl std">CVC</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">gsub</span><span class="hl std">(</span><span class="hl str">' '</span><span class="hl std">,</span> <span class="hl str">''</span><span class="hl std">, Arabic</span><span class="hl opt">$</span><span class="hl std">CVC)</span><span class="hl com">#delete spaces </span>
+<span class="hl std">Arabic</span><span class="hl opt">$</span><span class="hl std">V</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">gsub</span><span class="hl std">(</span><span class="hl str">' '</span><span class="hl std">,</span> <span class="hl str">''</span><span class="hl std">, Arabic</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl com">#delete spaces</span>
+<span class="hl std">Arabic</span><span class="hl opt">$</span><span class="hl std">Length</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">gsub</span><span class="hl std">(</span><span class="hl str">' '</span><span class="hl std">,</span> <span class="hl str">''</span><span class="hl std">, Arabic</span><span class="hl opt">$</span><span class="hl std">Length)</span><span class="hl com">#delete spaces </span>
+
+<span class="hl std">Arabic</span><span class="hl opt">$</span><span class="hl std">f0ons</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">as.integer</span><span class="hl std">(</span><span class="hl kwd">gsub</span><span class="hl std">(</span><span class="hl str">'--undefined--'</span><span class="hl std">,</span> <span class="hl num">NA</span><span class="hl std">, Arabic</span><span class="hl opt">$</span><span class="hl std">f0ons))</span>
+<span class="hl std">Arabic</span><span class="hl opt">$</span><span class="hl std">f0mid</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">as.integer</span><span class="hl std">(</span><span class="hl kwd">gsub</span><span class="hl std">(</span><span class="hl str">'--undefined--'</span><span class="hl std">,</span> <span class="hl num">NA</span><span class="hl std">, Arabic</span><span class="hl opt">$</span><span class="hl std">f0mid))</span>
+<span class="hl std">Arabic</span><span class="hl opt">$</span><span class="hl std">f0off</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">as.integer</span><span class="hl std">(</span><span class="hl kwd">gsub</span><span class="hl std">(</span><span class="hl str">'--undefined--'</span><span class="hl std">,</span> <span class="hl num">NA</span><span class="hl std">, Arabic</span><span class="hl opt">$</span><span class="hl std">f0off))</span>
+
+
+<span class="hl std">Arabic</span> <span class="hl kwb">&lt;-</span> <span class="hl std">dplyr</span><span class="hl opt">::</span><span class="hl kwd">mutate_if</span><span class="hl std">(Arabic, is.character, as.factor)</span> <span class="hl com">## Transform all variable types from &quot;character&quot; to factors. </span>
+<span class="hl com">#Arabic &lt;- filter(Arabic, V!=&quot;e:&quot; &amp; V!=&quot;o:&quot;)</span>
+<span class="hl std">Arabic</span><span class="hl opt">$</span><span class="hl std">V</span> <span class="hl kwb">=</span> <span class="hl kwd">factor</span><span class="hl std">(Arabic</span><span class="hl opt">$</span><span class="hl std">V,</span> <span class="hl kwc">levels</span> <span class="hl std">=</span> <span class="hl kwd">c</span><span class="hl std">(</span><span class="hl str">'i'</span><span class="hl std">,</span><span class="hl str">'a'</span><span class="hl std">,</span><span class="hl str">'u'</span><span class="hl std">,</span><span class="hl str">'i:'</span><span class="hl std">,</span><span class="hl str">'a:'</span><span class="hl std">,</span><span class="hl str">'u:'</span><span class="hl std">,</span><span class="hl str">'e:'</span><span class="hl std">,</span><span class="hl str">'o:'</span><span class="hl std">))</span> <span class="hl com">## display order of V</span>
+<span class="hl std">Arabic</span><span class="hl opt">$</span><span class="hl std">C</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">factor</span><span class="hl std">(Arabic</span><span class="hl opt">$</span><span class="hl std">C,</span> <span class="hl kwc">levels</span><span class="hl std">=</span><span class="hl kwd">c</span><span class="hl std">(</span><span class="hl str">&quot;b&quot;</span><span class="hl std">,</span><span class="hl str">&quot;d&quot;</span><span class="hl std">,</span><span class="hl str">&quot;g&quot;</span><span class="hl std">,</span><span class="hl str">&quot;t&quot;</span><span class="hl std">,</span><span class="hl str">&quot;k&quot;</span><span class="hl std">))</span> <span class="hl com">## display order of C</span>
+<span class="hl std">Arabic</span><span class="hl opt">$</span><span class="hl std">VOTi</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">as.integer</span><span class="hl std">(Arabic</span><span class="hl opt">$</span><span class="hl std">VOTi)</span>
+
+
+<span class="hl std">Arabic</span><span class="hl opt">$</span><span class="hl std">F1midnor</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">with</span><span class="hl std">(Arabic,</span> <span class="hl kwd">normLobanov</span><span class="hl std">(F1mid))</span> <span class="hl com">#F1mid normalisation</span>
+<span class="hl std">Arabic</span><span class="hl opt">$</span><span class="hl std">F2midnor</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">with</span><span class="hl std">(Arabic,</span> <span class="hl kwd">normLobanov</span><span class="hl std">(F2mid))</span> <span class="hl com">#F2mid normalisation</span>
+</pre></div>
+</div></div>
+
+<p>lda of all vowels with and without temporal information :
+</p>
+
+<div class="chunk" id="unnamed-chunk-2"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor,</span> <span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic,</span><span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl com"># total percent correct</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.5764583
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com"># percent correct for each category of V</span>
+<span class="hl std">selectTabs</span> <span class="hl kwb">&lt;-</span><span class="hl kwd">table</span><span class="hl std">(prev,Arabic</span><span class="hl opt">$</span><span class="hl std">V)</span>
+<span class="hl kwd">confusionMatrix</span><span class="hl std">(selectTabs)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## Confusion Matrix and Statistics
+## 
+##     
+## prev    i    a    u   i:   a:   u:   e:   o:
+##   i   558   89   32  129    3    1  368    0
+##   a    72  532  155    1  212    6  159   93
+##   u    71   65  416    2   11  222   10  136
+##   i:  199   22    0 1048    0    0  122    0
+##   a:    0  254    4    0  899    0    1   65
+##   u:    0    0  365    0    0  917    0  280
+##   e:  300  126    5   20    6    0  540    2
+##   o:    0  112  223    0   69   54    0  624
+## 
+## Overall Statistics
+##                                           
+##                Accuracy : 0.5765          
+##                  95% CI : (0.5665, 0.5864)
+##     No Information Rate : 0.125           
+##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16       
+##                                           
+##                   Kappa : 0.516           
+##                                           
+##  Mcnemar's Test P-Value : NA              
+## 
+## Statistics by Class:
+## 
+##                      Class: i Class: a Class: u Class: i: Class: a: Class: u:
+## Sensitivity           0.46500  0.44333  0.34667    0.8733   0.74917   0.76417
+## Specificity           0.92595  0.91690  0.93845    0.9592   0.96143   0.92321
+## Pos Pred Value        0.47288  0.43252  0.44587    0.7534   0.73508   0.58707
+## Neg Pred Value        0.92375  0.92019  0.90954    0.9815   0.96407   0.96479
+## Prevalence            0.12500  0.12500  0.12500    0.1250   0.12500   0.12500
+## Detection Rate        0.05813  0.05542  0.04333    0.1092   0.09365   0.09552
+## Detection Prevalence  0.12292  0.12812  0.09719    0.1449   0.12740   0.16271
+## Balanced Accuracy     0.69548  0.68012  0.64256    0.9163   0.85530   0.84369
+##                      Class: e: Class: o:
+## Sensitivity            0.45000    0.5200
+## Specificity            0.94536    0.9455
+## Pos Pred Value         0.54054    0.5767
+## Neg Pred Value         0.92326    0.9324
+## Prevalence             0.12500    0.1250
+## Detection Rate         0.05625    0.0650
+## Detection Prevalence   0.10406    0.1127
+## Balanced Accuracy      0.69768    0.7327
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">###</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Duration,</span> <span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic,</span><span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl com"># total percent correct</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.7135417
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com"># percent correct for each category of V</span>
+<span class="hl std">selectTabs</span> <span class="hl kwb">&lt;-</span><span class="hl kwd">table</span><span class="hl std">(prev,Arabic</span><span class="hl opt">$</span><span class="hl std">V)</span>
+<span class="hl kwd">confusionMatrix</span><span class="hl std">(selectTabs)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## Confusion Matrix and Statistics
+## 
+##     
+## prev    i    a    u   i:   a:   u:   e:   o:
+##   i   928  184   34  134    2    1  191    1
+##   a    96  750  153    1  133    7   62  105
+##   u    68   95  891    2    1  253    3  120
+##   i:   62    8    0 1039    0    0  128    0
+##   a:    0  110    1    0  940    0   16   74
+##   u:    0    0   82    0    0  867    0  257
+##   e:   46   14    0   24   26    0  793    1
+##   o:    0   39   39    0   98   72    7  642
+## 
+## Overall Statistics
+##                                           
+##                Accuracy : 0.7135          
+##                  95% CI : (0.7044, 0.7226)
+##     No Information Rate : 0.125           
+##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16       
+##                                           
+##                   Kappa : 0.6726          
+##                                           
+##  Mcnemar's Test P-Value : NA              
+## 
+## Statistics by Class:
+## 
+##                      Class: i Class: a Class: u Class: i: Class: a: Class: u:
+## Sensitivity           0.77333  0.62500  0.74250    0.8658   0.78333   0.72250
+## Specificity           0.93488  0.93369  0.93548    0.9764   0.97607   0.95964
+## Pos Pred Value        0.62915  0.57383  0.62177    0.8399   0.82384   0.71891
+## Neg Pred Value        0.96652  0.94574  0.96216    0.9807   0.96926   0.96033
+## Prevalence            0.12500  0.12500  0.12500    0.1250   0.12500   0.12500
+## Detection Rate        0.09667  0.07812  0.09281    0.1082   0.09792   0.09031
+## Detection Prevalence  0.15365  0.13615  0.14927    0.1289   0.11885   0.12562
+## Balanced Accuracy     0.85411  0.77935  0.83899    0.9211   0.87970   0.84107
+##                      Class: e: Class: o:
+## Sensitivity            0.66083   0.53500
+## Specificity            0.98679   0.96964
+## Pos Pred Value         0.87721   0.71572
+## Neg Pred Value         0.95320   0.93588
+## Prevalence             0.12500   0.12500
+## Detection Rate         0.08260   0.06688
+## Detection Prevalence   0.09417   0.09344
+## Balanced Accuracy      0.82381   0.75232
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">####</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Word_V_ratio,</span> <span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic,</span><span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl com"># total percent correct</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.7007292
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com"># percent correct for each category of V</span>
+<span class="hl std">selectTabs</span> <span class="hl kwb">&lt;-</span><span class="hl kwd">table</span><span class="hl std">(prev,Arabic</span><span class="hl opt">$</span><span class="hl std">V)</span>
+<span class="hl kwd">confusionMatrix</span><span class="hl std">(selectTabs)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## Confusion Matrix and Statistics
+## 
+##     
+## prev    i    a    u   i:   a:   u:   e:   o:
+##   i   828  153   23   59    2    1   83    1
+##   a    61  610  108    1   66    2   41   68
+##   u    38   67  688    2    0  153    0   62
+##   i:   45    3    0 1068    0    0  142    0
+##   a:    3  184    6    0  995    0    9   73
+##   u:    0    1  207    0    1  933    0  309
+##   e:  221   70   23   70   36    6  921    3
+##   o:    4  112  145    0  100  105    4  684
+## 
+## Overall Statistics
+##                                           
+##                Accuracy : 0.7007          
+##                  95% CI : (0.6915, 0.7099)
+##     No Information Rate : 0.125           
+##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16       
+##                                           
+##                   Kappa : 0.658           
+##                                           
+##  Mcnemar's Test P-Value : NA              
+## 
+## Statistics by Class:
+## 
+##                      Class: i Class: a Class: u Class: i: Class: a: Class: u:
+## Sensitivity           0.69000  0.50833  0.57333    0.8900    0.8292   0.77750
+## Specificity           0.96167  0.95869  0.96167    0.9774    0.9673   0.93833
+## Pos Pred Value        0.72000  0.63741  0.68119    0.8490    0.7835   0.64300
+## Neg Pred Value        0.95598  0.93174  0.94040    0.9842    0.9754   0.96724
+## Prevalence            0.12500  0.12500  0.12500    0.1250    0.1250   0.12500
+## Detection Rate        0.08625  0.06354  0.07167    0.1113    0.1036   0.09719
+## Detection Prevalence  0.11979  0.09969  0.10521    0.1310    0.1323   0.15115
+## Balanced Accuracy     0.82583  0.73351  0.76750    0.9337    0.8982   0.85792
+##                      Class: e: Class: o:
+## Sensitivity            0.76750   0.57000
+## Specificity            0.94893   0.94405
+## Pos Pred Value         0.68222   0.59272
+## Neg Pred Value         0.96618   0.93891
+## Prevalence             0.12500   0.12500
+## Detection Rate         0.09594   0.07125
+## Detection Prevalence   0.14062   0.12021
+## Balanced Accuracy      0.85821   0.75702
+</pre></div>
+</div></div>
+
+
+end.rcode-->
+
+<p>Dividing the data into subsets to study each timbre in each rate:
+</p>
+
+<div class="chunk" id="unnamed-chunk-3"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl com">#preparing vowel pairs:</span>
+<span class="hl std">Arabica</span> <span class="hl kwb">=</span> <span class="hl std">Arabic[Arabic</span><span class="hl opt">$</span><span class="hl std">Timbre</span><span class="hl opt">==</span><span class="hl str">'a'</span><span class="hl std">,]</span>
+<span class="hl std">Arabica</span><span class="hl opt">$</span><span class="hl std">Timbre</span> <span class="hl kwb">=</span> <span class="hl kwd">droplevels</span><span class="hl std">(Arabica</span><span class="hl opt">$</span><span class="hl std">Timbre)</span>
+<span class="hl std">Arabica</span><span class="hl opt">$</span><span class="hl std">V</span> <span class="hl kwb">=</span> <span class="hl kwd">droplevels</span><span class="hl std">(Arabica</span><span class="hl opt">$</span><span class="hl std">V)</span>
+
+<span class="hl std">Arabici</span> <span class="hl kwb">=</span> <span class="hl std">Arabic[Arabic</span><span class="hl opt">$</span><span class="hl std">Timbre</span><span class="hl opt">==</span><span class="hl str">'i'</span><span class="hl std">,]</span>
+<span class="hl std">Arabici</span><span class="hl opt">$</span><span class="hl std">Timbre</span> <span class="hl kwb">=</span> <span class="hl kwd">droplevels</span><span class="hl std">(Arabici</span><span class="hl opt">$</span><span class="hl std">Timbre)</span>
+<span class="hl std">Arabici</span><span class="hl opt">$</span><span class="hl std">V</span> <span class="hl kwb">=</span> <span class="hl kwd">droplevels</span><span class="hl std">(Arabici</span><span class="hl opt">$</span><span class="hl std">V)</span>
+
+<span class="hl std">Arabicu</span> <span class="hl kwb">=</span> <span class="hl std">Arabic[Arabic</span><span class="hl opt">$</span><span class="hl std">Timbre</span><span class="hl opt">==</span><span class="hl str">'u'</span><span class="hl std">,]</span>
+<span class="hl std">Arabicu</span><span class="hl opt">$</span><span class="hl std">Timbre</span> <span class="hl kwb">=</span> <span class="hl kwd">droplevels</span><span class="hl std">(Arabicu</span><span class="hl opt">$</span><span class="hl std">Timbre)</span>
+<span class="hl std">Arabicu</span><span class="hl opt">$</span><span class="hl std">V</span> <span class="hl kwb">=</span> <span class="hl kwd">droplevels</span><span class="hl std">(Arabicu</span><span class="hl opt">$</span><span class="hl std">V)</span>
+
+<span class="hl std">Arabice</span> <span class="hl kwb">=</span> <span class="hl std">Arabic[Arabic</span><span class="hl opt">$</span><span class="hl std">V</span><span class="hl opt">==</span><span class="hl str">'e:'</span> <span class="hl opt">|</span> <span class="hl std">Arabic</span><span class="hl opt">$</span><span class="hl std">V</span><span class="hl opt">==</span><span class="hl str">'i'</span><span class="hl std">,]</span>
+<span class="hl std">Arabice</span><span class="hl opt">$</span><span class="hl std">Timbre</span> <span class="hl kwb">=</span> <span class="hl kwd">droplevels</span><span class="hl std">(Arabice</span><span class="hl opt">$</span><span class="hl std">Timbre)</span>
+<span class="hl std">Arabice</span><span class="hl opt">$</span><span class="hl std">V</span> <span class="hl kwb">=</span> <span class="hl kwd">droplevels</span><span class="hl std">(Arabice</span><span class="hl opt">$</span><span class="hl std">V)</span>
+
+<span class="hl std">Arabico</span> <span class="hl kwb">=</span> <span class="hl std">Arabic[Arabic</span><span class="hl opt">$</span><span class="hl std">V</span><span class="hl opt">==</span><span class="hl str">'o:'</span> <span class="hl opt">|</span> <span class="hl std">Arabic</span><span class="hl opt">$</span><span class="hl std">V</span><span class="hl opt">==</span><span class="hl str">'u'</span><span class="hl std">,]</span>
+<span class="hl std">Arabico</span><span class="hl opt">$</span><span class="hl std">Timbre</span> <span class="hl kwb">=</span> <span class="hl kwd">droplevels</span><span class="hl std">(Arabico</span><span class="hl opt">$</span><span class="hl std">Timbre)</span>
+<span class="hl std">Arabico</span><span class="hl opt">$</span><span class="hl std">V</span> <span class="hl kwb">=</span> <span class="hl kwd">droplevels</span><span class="hl std">(Arabico</span><span class="hl opt">$</span><span class="hl std">V)</span>
+</pre></div>
+</div></div>
+<p>LDA for all rates for each vowel pair:
+</p>
+
+<div class="chunk" id="unnamed-chunk-4"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl com">#a-a:</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor,</span> <span class="hl kwc">data</span><span class="hl std">=Arabica,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabica</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabica))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.7683333
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#a-a: + duration</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Duration,</span> <span class="hl kwc">data</span><span class="hl std">=Arabica,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabica</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabica))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.9091667
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#a-a: + word-v-ratio</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Word_V_ratio,</span> <span class="hl kwc">data</span><span class="hl std">=Arabica,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabica</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabica))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.8775
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#i-i:</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor,</span> <span class="hl kwc">data</span><span class="hl std">=Arabici,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabici</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabici))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.8604167
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#i-i: + duration</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Duration,</span> <span class="hl kwc">data</span><span class="hl std">=Arabici,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabici</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabici))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.9233333
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#i-i: + word-v-ratio</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Word_V_ratio,</span> <span class="hl kwc">data</span><span class="hl std">=Arabici,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabici</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabici))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.9354167
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#u-u:</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor,</span> <span class="hl kwc">data</span><span class="hl std">=Arabicu,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabicu</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabicu))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.72
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#u-u: + duration</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Duration,</span> <span class="hl kwc">data</span><span class="hl std">=Arabicu,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabicu</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabicu))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.8570833
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#u-u: + word-v-ratio</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Word_V_ratio,</span> <span class="hl kwc">data</span><span class="hl std">=Arabicu,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabicu</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabicu))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.80875
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#i-e:</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor,</span> <span class="hl kwc">data</span><span class="hl std">=Arabice,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabice</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabice))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.6279167
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#i-e: + duration</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Duration,</span> <span class="hl kwc">data</span><span class="hl std">=Arabice,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabice</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabice))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.8766667
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#i-e: + word-v-ratio</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Word_V_ratio,</span> <span class="hl kwc">data</span><span class="hl std">=Arabice,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabice</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabice))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.8491667
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#u-o:</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor,</span> <span class="hl kwc">data</span><span class="hl std">=Arabico,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabico</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabico))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.73875
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#u-o: + duration</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Duration,</span> <span class="hl kwc">data</span><span class="hl std">=Arabico,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabico</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabico))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.88375
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#u-o: + word-v-ratio</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Word_V_ratio,</span> <span class="hl kwc">data</span><span class="hl std">=Arabico,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabico</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabico))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.82875
+</pre></div>
+</div></div>
+
+<p>LDA in each rate for each vowel pair:
+</p>
+<div class="chunk" id="unnamed-chunk-5"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl com">#a-a: slow</span>
+<span class="hl std">Arabic_a</span><span class="hl kwb">=</span><span class="hl std">Arabica[Arabica</span><span class="hl opt">$</span><span class="hl std">Rate</span><span class="hl opt">==</span><span class="hl str">'slow'</span><span class="hl std">,]</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_a,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_a</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_a))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.78125
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#a-a: slow +duration</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Duration,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_a,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_a</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_a))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.9775
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#a-a: slow +Word_V_ratio</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Word_V_ratio,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_a,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_a</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_a))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.8925
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#a-a: normal</span>
+<span class="hl std">Arabic_a</span><span class="hl kwb">=</span><span class="hl std">Arabica[Arabica</span><span class="hl opt">$</span><span class="hl std">Rate</span><span class="hl opt">==</span><span class="hl str">'normal'</span><span class="hl std">,]</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_a,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_a</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_a))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.755
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#a-a: normal +duration</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Duration,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_a,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_a</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_a))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.9625
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#a-a: normal +Word_V_ratio</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Word_V_ratio,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_a,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_a</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_a))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.85875
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#a-a: fast</span>
+<span class="hl std">Arabic_a</span><span class="hl kwb">=</span><span class="hl std">Arabica[Arabica</span><span class="hl opt">$</span><span class="hl std">Rate</span><span class="hl opt">==</span><span class="hl str">'fast'</span><span class="hl std">,]</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_a,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_a</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_a))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.7725
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#a-a: fast +duration</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Duration,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_a,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_a</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_a))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.94625
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#a-a: fast +Word_V_ratio</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Word_V_ratio,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_a,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_a</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_a))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.8775
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">######</span>
+
+<span class="hl com">#i-i: slow</span>
+<span class="hl std">Arabic_i</span><span class="hl kwb">=</span><span class="hl std">Arabici[Arabici</span><span class="hl opt">$</span><span class="hl std">Rate</span><span class="hl opt">==</span><span class="hl str">'slow'</span><span class="hl std">,]</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_i,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_i</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_i))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.9175
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#i-i: slow +duration</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Duration,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_i,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_i</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_i))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.97125
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#i-i: slow +Word_V_ratio</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Word_V_ratio,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_i,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_i</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_i))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.96625
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#i-i: normal</span>
+<span class="hl std">Arabic_i</span><span class="hl kwb">=</span><span class="hl std">Arabici[Arabici</span><span class="hl opt">$</span><span class="hl std">Rate</span><span class="hl opt">==</span><span class="hl str">'normal'</span><span class="hl std">,]</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_i,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_i</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_i))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.8775
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#i-i: normal +duration</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Duration,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_i,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_i</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_i))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.96375
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#i-i: normal +Word_V_ratio</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Word_V_ratio,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_i,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_i</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_i))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.9375
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#i-i: fast</span>
+<span class="hl std">Arabic_i</span><span class="hl kwb">=</span><span class="hl std">Arabici[Arabici</span><span class="hl opt">$</span><span class="hl std">Rate</span><span class="hl opt">==</span><span class="hl str">'fast'</span><span class="hl std">,]</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_i,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_i</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_i))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.81625
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#i-i: fast +duration</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Duration,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_i,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_i</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_i))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.9025
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#i-i: fast +Word_V_ratio</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Word_V_ratio,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_i,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_i</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_i))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.9025
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">##########################</span>
+
+<span class="hl com">#u-u: slow</span>
+<span class="hl std">Arabic_u</span><span class="hl kwb">=</span><span class="hl std">Arabicu[Arabicu</span><span class="hl opt">$</span><span class="hl std">Rate</span><span class="hl opt">==</span><span class="hl str">'slow'</span><span class="hl std">,]</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_u,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_u</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_u))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.77875
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#u-u: slow +duration</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Duration,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_u,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_u</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_u))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.955
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#u-u: slow +Word_V_ratio</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Word_V_ratio,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_u,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_u</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_u))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.88625
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#u-u: normal</span>
+<span class="hl std">Arabic_u</span><span class="hl kwb">=</span><span class="hl std">Arabicu[Arabicu</span><span class="hl opt">$</span><span class="hl std">Rate</span><span class="hl opt">==</span><span class="hl str">'normal'</span><span class="hl std">,]</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_u,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_u</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_u))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.74375
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#u-u: normal +duration</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Duration,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_u,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_u</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_u))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.9175
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#u-u: normal +Word_V_ratio</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Word_V_ratio,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_u,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_u</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_u))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.805
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#u-u: fast</span>
+<span class="hl std">Arabic_u</span><span class="hl kwb">=</span><span class="hl std">Arabicu[Arabicu</span><span class="hl opt">$</span><span class="hl std">Rate</span><span class="hl opt">==</span><span class="hl str">'fast'</span><span class="hl std">,]</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_u,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_u</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_u))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.655
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#u-u: fast +duration</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Duration,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_u,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_u</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_u))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.85125
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#u-u: fast +Word_V_ratio</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Word_V_ratio,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_u,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_u</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_u))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.745
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">################</span>
+
+<span class="hl com">#i-e: slow</span>
+<span class="hl std">Arabic_e</span><span class="hl kwb">=</span><span class="hl std">Arabice[Arabice</span><span class="hl opt">$</span><span class="hl std">Rate</span><span class="hl opt">==</span><span class="hl str">'slow'</span><span class="hl std">,]</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_e,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_e</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_e))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.59625
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#i-e: slow +duration</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Duration,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_e,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_e</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_e))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.95
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#i-e: slow +Word_V_ratio</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Word_V_ratio,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_e,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_e</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_e))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.89125
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#i-e: normal</span>
+<span class="hl std">Arabic_e</span><span class="hl kwb">=</span><span class="hl std">Arabice[Arabice</span><span class="hl opt">$</span><span class="hl std">Rate</span><span class="hl opt">==</span><span class="hl str">'normal'</span><span class="hl std">,]</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_e,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_e</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_e))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.6325
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#i-e: normal +duration</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Duration,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_e,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_e</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_e))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.93125
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#i-e: normal +Word_V_ratio</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Word_V_ratio,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_e,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_e</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_e))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.845
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#i-e: fast</span>
+<span class="hl std">Arabic_e</span><span class="hl kwb">=</span><span class="hl std">Arabice[Arabice</span><span class="hl opt">$</span><span class="hl std">Rate</span><span class="hl opt">==</span><span class="hl str">'fast'</span><span class="hl std">,]</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_e,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_e</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_e))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.6475
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#i-e: fast +duration</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Duration,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_e,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_e</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_e))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.91125
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#i-e: fast +Word_V_ratio</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Word_V_ratio,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_e,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_e</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_e))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.81875
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">######################</span>
+
+<span class="hl com">#u-o: slow</span>
+<span class="hl std">Arabic_o</span><span class="hl kwb">=</span><span class="hl std">Arabico[Arabico</span><span class="hl opt">$</span><span class="hl std">Rate</span><span class="hl opt">==</span><span class="hl str">'slow'</span><span class="hl std">,]</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_o,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_o</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_o))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.76125
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#u-o: slow +duration</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Duration,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_o,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_o</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_o))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.94625
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#u-o: slow +Word_V_ratio</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Word_V_ratio,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_o,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_o</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_o))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.865
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#u-o: normal</span>
+<span class="hl std">Arabic_o</span><span class="hl kwb">=</span><span class="hl std">Arabico[Arabico</span><span class="hl opt">$</span><span class="hl std">Rate</span><span class="hl opt">==</span><span class="hl str">'normal'</span><span class="hl std">,]</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_o,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_o</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_o))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.75375
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#u-o: normal +duration</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Duration,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_o,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_o</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_o))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.9225
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#u-o: normal +Word_V_ratio</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Word_V_ratio,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_o,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_o</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_o))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.84
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#u-o: fast</span>
+<span class="hl std">Arabic_o</span><span class="hl kwb">=</span><span class="hl std">Arabico[Arabico</span><span class="hl opt">$</span><span class="hl std">Rate</span><span class="hl opt">==</span><span class="hl str">'fast'</span><span class="hl std">,]</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_o,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_o</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_o))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.7325
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#u-o: fast +duration</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Duration,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_o,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_o</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_o))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.8875
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#u-o: fast +Word_V_ratio</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Word_V_ratio,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_o,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_o</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_o))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.78875
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#### extreme situation : </span>
+
+<span class="hl com">##a-slow-a:-fast </span>
+<span class="hl std">Arabic_a</span><span class="hl kwb">=</span><span class="hl std">Arabica[Arabica</span><span class="hl opt">$</span><span class="hl std">Rate</span><span class="hl opt">==</span><span class="hl str">'fast'</span> <span class="hl opt">&amp;</span> <span class="hl std">Arabica</span><span class="hl opt">$</span><span class="hl std">V</span><span class="hl opt">==</span><span class="hl str">'a:'</span> <span class="hl opt">|</span> <span class="hl std">Arabica</span><span class="hl opt">$</span><span class="hl std">Rate</span><span class="hl opt">==</span><span class="hl str">'slow'</span> <span class="hl opt">&amp;</span> <span class="hl std">Arabica</span><span class="hl opt">$</span><span class="hl std">V</span><span class="hl opt">==</span><span class="hl str">'a'</span><span class="hl std">,]</span>
+
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_a,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_a</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_a))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.72875
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#a-slow-a:-fast  +duration</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Duration,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_a,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_a</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_a))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.79875
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#a-slow-a:-fast  +Word_V_ratio</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Word_V_ratio,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_a,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_a</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_a))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.8675
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#####################</span>
+
+<span class="hl com">##i-slow-i:-fast</span>
+
+<span class="hl std">Arabic_i</span><span class="hl kwb">=</span><span class="hl std">Arabici[Arabici</span><span class="hl opt">$</span><span class="hl std">Rate</span><span class="hl opt">==</span><span class="hl str">'fast'</span> <span class="hl opt">&amp;</span> <span class="hl std">Arabici</span><span class="hl opt">$</span><span class="hl std">V</span><span class="hl opt">==</span><span class="hl str">'i:'</span> <span class="hl opt">|</span> <span class="hl std">Arabici</span><span class="hl opt">$</span><span class="hl std">Rate</span><span class="hl opt">==</span><span class="hl str">'slow'</span> <span class="hl opt">&amp;</span> <span class="hl std">Arabici</span><span class="hl opt">$</span><span class="hl std">V</span><span class="hl opt">==</span><span class="hl str">'i'</span><span class="hl std">,]</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_i,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_i</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_i))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.78375
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#i-slow-i:-fast  +duration</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Duration,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_i,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_i</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_i))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.81
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#i-slow-i:-fast  +Word_V_ratio</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Word_V_ratio,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_i,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_i</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_i))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.8875
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">###################</span>
+<span class="hl com">#u-slow-u:-fast</span>
+
+<span class="hl std">Arabic_u</span><span class="hl kwb">=</span><span class="hl std">Arabicu[Arabicu</span><span class="hl opt">$</span><span class="hl std">Rate</span><span class="hl opt">==</span><span class="hl str">'fast'</span> <span class="hl opt">&amp;</span> <span class="hl std">Arabicu</span><span class="hl opt">$</span><span class="hl std">V</span><span class="hl opt">==</span><span class="hl str">'u:'</span> <span class="hl opt">|</span> <span class="hl std">Arabicu</span><span class="hl opt">$</span><span class="hl std">Rate</span><span class="hl opt">==</span><span class="hl str">'slow'</span> <span class="hl opt">&amp;</span> <span class="hl std">Arabicu</span><span class="hl opt">$</span><span class="hl std">V</span><span class="hl opt">==</span><span class="hl str">'u'</span><span class="hl std">,]</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_u,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_u</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_u))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.59625
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#u-slow-u:-fast  +duration</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Duration,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_u,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_u</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_u))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.66375
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#u-slow-u:-fast  +Word_V_ratio</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Word_V_ratio,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_u,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_u</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_u))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.73875
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">###########################</span>
+
+<span class="hl com">#i-slow-e:-fast</span>
+
+<span class="hl std">Arabic_e</span><span class="hl kwb">=</span><span class="hl std">Arabice[Arabice</span><span class="hl opt">$</span><span class="hl std">Rate</span><span class="hl opt">==</span><span class="hl str">'fast'</span> <span class="hl opt">&amp;</span> <span class="hl std">Arabice</span><span class="hl opt">$</span><span class="hl std">V</span><span class="hl opt">==</span><span class="hl str">'e:'</span> <span class="hl opt">|</span> <span class="hl std">Arabice</span><span class="hl opt">$</span><span class="hl std">Rate</span><span class="hl opt">==</span><span class="hl str">'slow'</span> <span class="hl opt">&amp;</span> <span class="hl std">Arabice</span><span class="hl opt">$</span><span class="hl std">V</span><span class="hl opt">==</span><span class="hl str">'i'</span><span class="hl std">,]</span>
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_e,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_e</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_e))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.7175
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#i-slow-e:-fast  +duration</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Duration,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_e,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_e</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_e))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.77625
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#i-slow-e:-fast  +Word_V_ratio</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Word_V_ratio,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_e,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_e</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_e))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.8225
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">###########################</span>
+
+<span class="hl com">#u-slow-o:-fast</span>
+<span class="hl std">Arabic_o</span><span class="hl kwb">=</span><span class="hl std">Arabico[Arabico</span><span class="hl opt">$</span><span class="hl std">Rate</span><span class="hl opt">==</span><span class="hl str">'fast'</span> <span class="hl opt">&amp;</span> <span class="hl std">Arabico</span><span class="hl opt">$</span><span class="hl std">V</span><span class="hl opt">==</span><span class="hl str">'o:'</span> <span class="hl opt">|</span> <span class="hl std">Arabico</span><span class="hl opt">$</span><span class="hl std">Rate</span><span class="hl opt">==</span><span class="hl str">'slow'</span> <span class="hl opt">&amp;</span> <span class="hl std">Arabico</span><span class="hl opt">$</span><span class="hl std">V</span><span class="hl opt">==</span><span class="hl str">'u'</span><span class="hl std">,]</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_o,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_o</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_o))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.69625
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#u-slow-o:-fast  +duration</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Duration,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_o,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_o</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_o))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.74375
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#u-slow-o:-fast  +Word_V_ratio</span>
+
+<span class="hl std">model</span> <span class="hl kwb">=</span> <span class="hl kwd">lda</span><span class="hl std">(V</span> <span class="hl opt">~</span> <span class="hl std">F1midnor</span><span class="hl opt">+</span><span class="hl std">F2midnor</span><span class="hl opt">+</span><span class="hl std">Word_V_ratio,</span> <span class="hl kwc">data</span><span class="hl std">=Arabic_o,</span><span class="hl kwc">na.action</span> <span class="hl std">= na.omit,</span> <span class="hl kwc">CV</span><span class="hl std">=</span><span class="hl num">TRUE</span><span class="hl std">)</span>
+<span class="hl std">prev</span> <span class="hl kwb">=</span> <span class="hl std">model</span><span class="hl opt">$</span><span class="hl std">class</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">sum</span><span class="hl std">(prev</span><span class="hl opt">==</span><span class="hl std">Arabic_o</span><span class="hl opt">$</span><span class="hl std">V)</span><span class="hl opt">/</span><span class="hl kwd">nrow</span><span class="hl std">(Arabic_o))</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] 0.7975
+</pre></div>
+</div></div>
+
+
+</body>
+</html>
